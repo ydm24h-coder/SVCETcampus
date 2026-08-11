@@ -1,0 +1,58 @@
+# Node.js dependencies
+node_modules/
+**/node_modules/
+
+# Environment variables / secrets
+.env
+.env.*
+**/.env
+**/.env.*
+!.env.example
+
+# Python virtual environments
+.venv/
+venv/
+**/.venv/
+**/venv/
+
+# Python cache
+__pycache__/
+**/__pycache__/
+*.pyc
+
+# Build output
+dist/
+**/dist/
+build/
+**/build/
+.next/
+**/.next/
+
+# Vercel
+.vercel/
+**/.vercel/
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Coverage
+coverage/
+**/coverage/
+
+# Environment secrets
+.env
+.env.*
+**/.env
+**/.env.*
+!.env.example

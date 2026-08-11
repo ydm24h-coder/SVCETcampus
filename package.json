@@ -1,0 +1,10 @@
+{
+  "name": "SVCETcampus",
+  "devDependencies": {
+    "prisma": "^7.8.0"
+  },
+  "dependencies": {
+    "@prisma/client": "^7.8.0",
+    "bcryptjs": "^3.0.3"
+  }
+}

@@ -1,0 +1,102 @@
+====================================================================
+               SVCET CAMPUS - PROJECT OVERVIEW
+====================================================================
+
+1. PROJECT SUMMARY
+------------------
+SVCET Campus is a comprehensive, all-in-one educational and professional 
+networking platform designed for Sri Venkateswara College of Engineering 
+and Technology. It seamlessly integrates academic management (attendance, 
+grades, assessments) with modern professional development (SkillHub, 
+portfolios, community networking) into a single, unified application. 
+The platform is designed with a premium, glassmorphism-based UI featuring 
+vibrant colors, micro-animations, and full dark/light mode support.
+
+2. TECHNOLOGY STACK
+-------------------
+- Frontend Framework: React.js (built with Vite for fast HMR and optimized builds)
+- Styling: Tailwind CSS (Utility-first styling, glassmorphism effects)
+- Animations: Framer Motion (Page transitions, list animations, modal popups)
+- Icons: Lucide React
+- Charts/Data Visualization: Recharts
+- File Storage Utility: IndexedDB (for storing photos/documents via fileStorage.js)
+- Data Persistence: LocalStorage (Entirely frontend-driven using custom React hooks to simulate a full backend database across sessions).
+
+3. SYSTEM DESIGN & ARCHITECTURE
+-------------------------------
+The application is structured as a client-heavy Single Page Application (SPA). 
+Due to the absence of a traditional backend, the system design follows a 
+"Local-First" architecture:
+- State Management Layer: React Context or custom hooks manage active session 
+  states in-memory for immediate UI updates.
+- Persistence Layer: Data is serialized into JSON and stored in browser `localStorage`.
+- Binary Data Layer: Images and document uploads (blobs/Base64) are stored in `IndexedDB` 
+  because they exceed the standard storage limits of `localStorage`.
+- Routing Layer: React Router DOM with `ProtectedRoutes` ensures that users can only 
+  access their respective portals (Admin, Faculty, Student) based on their authenticated role.
+
+4. DATABASE (Simulated via Browser APIs)
+----------------------------------------
+The "DB" relies on two main browser storage mechanisms:
+- LocalStorage Keys (JSON Strings):
+  - `svcet_users` / `svcet_students` / `svcet_faculty`: Stores user credentials and core data.
+  - `svcet_professional_profiles`: Stores student skills, portfolio metadata, badges, and XP.
+  - `svcet_activity_feed`: Stores the global timeline of posts, likes, and comments.
+  - `svcet_faculty_skill_verifications`: Tracks faculty approvals of student-claimed skills.
+  - `svcet_faculty_project_reviews`: Tracks faculty feedback and star ratings on student projects.
+  - `svcet_communities` / `svcet_challenges`: Stores SkillHub networking data.
+- IndexedDB (`svcet_files_db`):
+  - Used strictly for storing binary attachments (photos, PDFs, documents) uploaded to posts 
+    or projects, utilizing a Promise-wrapper around the native IndexedDB API.
+
+5. CUSTOM HOOKS (Data Access Layer)
+-----------------------------------
+Custom hooks act as the ORM/Data Access Layer, abstracting the storage mechanisms away from the UI:
+- `useProfessionalProfile.js`: The most complex hook. Exposes methods like `postActivity()`, `endorseSkill()`, 
+  `likePost()`, and `addComment()`. It reads from `svcet_professional_profiles` and `svcet_activity_feed` 
+  and handles the business logic before persisting back to storage.
+- `useSkillHub.js`: Manages the gamification aspect (XP, badges, challenges) and Team Finder data.
+- `useCommunities.js`: Manages the creation of domain-specific groups (Coding, Design, AI) and their internal posts/events.
+- `useStudents.js` / `useFaculty.js`: Handles authentication (login/logout) and session retrieval.
+
+6. TYPOGRAPHY
+-------------
+- Font Family: The application primarily uses the `'Outfit'` font family (Google Fonts).
+  It provides a modern, clean, and highly legible sans-serif appearance that fits the premium, 
+  tech-forward aesthetic.
+
+7. COLORS & THEMES
+------------------
+The platform uses a sophisticated HSL-based color system defined in `tailwind.config.cjs` 
+and `index.css`, allowing for fluid transitions between Light and Dark modes:
+- CSS Variables: Colors are defined as CSS variables (e.g., `--background`, `--primary`, `--card`) 
+  which automatically switch their HSL values when the `.dark` class is applied to the HTML root.
+- Glassmorphism: Heavy use of translucent backgrounds (`bg-background/80`, `bg-white/10`), 
+  backdrop filters (`backdrop-blur-xl`), and subtle borders to create a "frosted glass" effect.
+- Theming Strategy: Dark mode is toggled using the Tailwind `class` strategy. 
+
+8. CORE MODULES BY ROLE
+-----------------------
+
+[ A ] ADMIN PORTAL (Super Admin)
+- User Management: Add/Edit/Delete Faculty and Students.
+- Academic Setup: Manage Departments and Courses.
+- Global Communications: Broadcast notices and handle help requests.
+- Platform Analytics: View overall system usage and engagement.
+
+[ B ] FACULTY PORTAL
+- Academic Management: Record Attendance, publish Grades, upload Course Materials, and create Assessments.
+- Skill Verification: Review and endorse skills claimed by students on their professional profiles.
+- Project Review: Browse student projects, rate them, and leave constructive feedback.
+- Mentorship Hub: Create and publish workshops directly to student SkillHub communities.
+
+[ C ] STUDENT PORTAL
+- Academic Dashboard: Track attendance, upcoming exams, grades, and course materials.
+- Practice & Coding Hub: Daily coding tasks with an integrated IDE for live evaluation.
+- Achievements Module: A unified portfolio combining Overview, Activity Feed (with attachments/sharing), Projects, and Certificates.
+- SkillHub: Collaborative networking ecosystem with Communities, Challenges, and Team Finder.
+- Professional Profile: Public showcase of skills, badges, social links, and the activity heatmap.
+
+====================================================================
+Generated for SVCET Campus Development Team
+====================================================================
