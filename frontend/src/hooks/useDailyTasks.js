@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { dailyTasks as defaultTasks } from "@database/frontend_mock/dailyTasks";
+import { dailyTasks as defaultTasks } from "@/data/dailyTasks";
 
 export const useDailyTasks = () => {
   const [data, setData] = useState(() => {

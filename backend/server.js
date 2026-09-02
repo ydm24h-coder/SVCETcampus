@@ -3,6 +3,10 @@ const cors = require('cors');
 const http = require('http');
 const { Server } = require('socket.io');
 require('dotenv').config();
+const connectDB = require('./config/db');
+
+// Connect to MongoDB
+connectDB();
 
 const app = express();
 const server = http.createServer(app);
