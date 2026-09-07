@@ -26,7 +26,7 @@ import { useDepartments } from '@/hooks/useDepartments';
 import SmartFilter from '@/components/SmartFilter';
 
 const FacultyPage = () => {
-  const { faculty, addFaculty, deleteFaculty, updateFaculty, applyBulkUpdates, bulkDeleteFaculty, bulkAddFaculty } = useFaculty();
+  const { faculty, loading, addFaculty, deleteFaculty, updateFaculty, applyBulkUpdates, bulkDeleteFaculty, bulkAddFaculty } = useFaculty();
   const { departments } = useDepartments();
   
   const fileInputRef = useRef(null);
@@ -387,7 +387,16 @@ const FacultyPage = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredFaculty.length === 0 ? (
+              {loading ? (
+                <TableRow>
+                  <TableCell colSpan={isSelectionMode ? 6 : 5} className="text-center py-8 text-neutral-500">
+                    <div className="flex justify-center items-center gap-2">
+                      <div className="w-4 h-4 rounded-full border-2 border-blue-500 border-t-transparent animate-spin"></div>
+                      Loading faculty from database...
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ) : filteredFaculty.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={isSelectionMode ? 6 : 5} className="py-8 text-center text-neutral-500">No faculty found.</TableCell>
                 </TableRow>

@@ -1,111 +1,142 @@
 import { useState, useEffect } from 'react';
 
-const STORAGE_KEY = 'svcet_students';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
-// We provide one demo student by default so the login page doesn't break if localStorage is cleared.
-const defaultStudents = [];
+const getToken = () => {
+  try {
+    const adminSession = localStorage.getItem('svcet_session_admin');
+    if (adminSession) {
+      const parsed = JSON.parse(adminSession);
+      return parsed.token;
+    }
+  } catch (e) {
+    console.error(e);
+  }
+  return '';
+};
 
 export const useStudents = () => {
-  const [students, setStudentsState] = useState(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) return JSON.parse(saved);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(defaultStudents));
-    return defaultStudents;
-  });
+  const [students, setStudents] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchStudents = async () => {
+    try {
+      const token = getToken();
+      if (!token) return;
+      const response = await fetch(`${API_URL}/api/admin/students`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (!response.ok) throw new Error('Failed to fetch');
+      const data = await response.json();
+      
+      const formatted = data.map(s => ({
+        id: s.id,
+        name: s.user?.name,
+        email: s.user?.email,
+        registerNumber: s.register_number,
+        department: s.department,
+        year: s.year,
+        pendingFees: 0,
+        parentPhoneNumber: ''
+      }));
+      setStudents(formatted);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const handleStorageChange = () => {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) setStudentsState(JSON.parse(saved));
-    };
-
-    window.addEventListener('storage', handleStorageChange);
-    window.addEventListener('studentsUpdated', handleStorageChange);
-    
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-      window.removeEventListener('studentsUpdated', handleStorageChange);
-    };
+    fetchStudents();
   }, []);
 
-  const setStudents = (newStudents) => {
-    let updated;
-    if (typeof newStudents === 'function') {
-      updated = newStudents(students);
-    } else {
-      updated = newStudents;
-    }
-    setStudentsState(updated);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-    window.dispatchEvent(new Event('studentsUpdated'));
-  };
-
-  const addStudent = (studentData) => {
-    const newStudent = {
-      ...studentData,
-      id: Date.now()
-    };
-    setStudents(prev => [newStudent, ...prev]);
-  };
-
-
-
-  const deleteStudent = (id) => {
-    setStudents(prev => prev.filter(s => s.id !== id));
-  };
-
-  const updateStudent = (id, updatedData) => {
-    setStudents(prev => prev.map(s => s.id === id ? { ...s, ...updatedData } : s));
-  };
-
-  const bulkUpdateStudents = (ids, updatedData) => {
-    setStudents(prev => prev.map(s => ids.includes(s.id) ? { ...s, ...updatedData } : s));
-  };
-
-  const applyBulkUpdates = (updatesArray) => {
-    setStudentsState(prev => {
-      const updated = prev.map(student => {
-        const update = updatesArray.find(u => u.id === student.id);
-        if (update) {
-          return { ...student, ...update.data };
-        }
-        return student;
+  const addStudent = async (studentData) => {
+    try {
+      const response = await fetch(`${API_URL}/api/admin/students`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${getToken()}`
+        },
+        body: JSON.stringify(studentData)
       });
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-      return updated;
-    });
-    window.dispatchEvent(new Event('studentsUpdated'));
+      if (response.ok) {
+        fetchStudents();
+      } else {
+        const error = await response.json();
+        alert(error.message || 'Failed to add student');
+      }
+    } catch (err) {
+      console.error(err);
+    }
   };
 
-  const bulkDeleteStudents = (ids) => {
-    setStudentsState(prev => {
-      const updated = prev.filter(s => !ids.includes(s.id));
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-      return updated;
-    });
-    window.dispatchEvent(new Event('studentsUpdated'));
+  const deleteStudent = async (id) => {
+    try {
+      const response = await fetch(`${API_URL}/api/admin/students/${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${getToken()}` }
+      });
+      if (response.ok) {
+        setStudents(prev => prev.filter(s => s.id !== id));
+      }
+    } catch (err) {
+      console.error(err);
+    }
   };
 
-  const bulkAddStudents = (studentsArray) => {
-    setStudentsState(prev => {
-      // Create new students with unique IDs based on timestamp + index
-      const timestamp = Date.now();
-      const newStudents = studentsArray.map((student, index) => ({
-        ...student,
-        id: timestamp + index
-      }));
-      
-      const updated = [...newStudents, ...prev];
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-      return updated;
-    });
-    window.dispatchEvent(new Event('studentsUpdated'));
+  const updateStudent = async (id, updatedData) => {
+    try {
+      const response = await fetch(`${API_URL}/api/admin/students/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${getToken()}`
+        },
+        body: JSON.stringify(updatedData)
+      });
+      if (response.ok) {
+        fetchStudents();
+      }
+    } catch (err) {
+      console.error(err);
+    }
   };
 
-  // Auth helper
+  // Bulk operations (Not fully supported by API yet, fallback to iterative for now)
+  const bulkUpdateStudents = async (ids, updatedData) => {
+    for (const id of ids) {
+      await updateStudent(id, updatedData);
+    }
+    fetchStudents();
+  };
+
+  const applyBulkUpdates = async (updatesArray) => {
+    for (const update of updatesArray) {
+      await updateStudent(update.id, update.data);
+    }
+    fetchStudents();
+  };
+
+  const bulkDeleteStudents = async (ids) => {
+    for (const id of ids) {
+      await deleteStudent(id);
+    }
+    fetchStudents();
+  };
+
+  const bulkAddStudents = async (studentsArray) => {
+    for (const student of studentsArray) {
+      await addStudent(student);
+    }
+    fetchStudents();
+  };
+
+  // Auth helper for frontend fallback (no longer used for real auth)
   const getStudentByCredentials = (registerNumber, password) => {
     return students.find(s => s.registerNumber === registerNumber && s.password === password);
   };
 
-  return { students, addStudent, deleteStudent, updateStudent, bulkUpdateStudents, applyBulkUpdates, bulkDeleteStudents, bulkAddStudents, getStudentByCredentials };
+  return { students, loading, addStudent, deleteStudent, updateStudent, bulkUpdateStudents, applyBulkUpdates, bulkDeleteStudents, bulkAddStudents, getStudentByCredentials };
 };

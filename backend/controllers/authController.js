@@ -12,7 +12,7 @@ const generateToken = (id, role) => {
 // @route   POST /api/auth/login
 // @access  Public
 const loginUser = async (req, res) => {
-  const { id, password, role } = req.body;
+  const { id, password, role } = req.body || {};
 
   try {
     let user = null;

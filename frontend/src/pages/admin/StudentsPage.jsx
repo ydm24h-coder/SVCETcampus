@@ -26,7 +26,7 @@ import { useSmartFilters } from '@/hooks/useSmartFilters';
 import SmartFilter from '@/components/SmartFilter';
 
 const StudentsPage = () => {
-  const { students, addStudent, deleteStudent, updateStudent, applyBulkUpdates, bulkDeleteStudents, bulkAddStudents } = useStudents();
+  const { students, loading, addStudent, deleteStudent, updateStudent, applyBulkUpdates, bulkDeleteStudents, bulkAddStudents } = useStudents();
   
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -422,7 +422,16 @@ const StudentsPage = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredStudents.length === 0 ? (
+              {loading ? (
+                <TableRow>
+                  <TableCell colSpan={isSelectionMode ? 6 : 5} className="text-center py-8 text-neutral-500">
+                    <div className="flex justify-center items-center gap-2">
+                      <div className="w-4 h-4 rounded-full border-2 border-blue-500 border-t-transparent animate-spin"></div>
+                      Loading students from database...
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ) : filteredStudents.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={isSelectionMode ? 6 : 5} className="text-center py-8 text-neutral-500">
                     No students found.

@@ -35,7 +35,7 @@ const getStudents = async (req, res) => {
 // @route   POST /api/admin/students
 // @access  Private/Admin
 const addStudent = async (req, res) => {
-  const { name, email, password, registerNumber, department, year, section } = req.body;
+  const { name, email, password, registerNumber, department, year, section } = req.body || {};
 
   try {
     // Check if user with email exists
@@ -133,7 +133,7 @@ const getFaculty = async (req, res) => {
 // @route   POST /api/admin/faculty
 // @access  Private/Admin
 const addFaculty = async (req, res) => {
-  const { name, email, password, facultyId, department, designation } = req.body;
+  const { name, email, password, facultyId, department, designation } = req.body || {};
 
   try {
     // Check if user with email exists
@@ -197,9 +197,160 @@ const addFaculty = async (req, res) => {
   }
 };
 
+// @desc    Update student
+// @route   PUT /api/admin/students/:id
+// @access  Private/Admin
+const updateStudent = async (req, res) => {
+  const { id } = req.params; // this is the student table id
+  const { name, email, password, registerNumber, department, year, section } = req.body || {};
+
+  try {
+    // get student to find user_id
+    const { data: student, error: studentError } = await supabase
+      .from('students')
+      .select('user_id')
+      .eq('id', id)
+      .single();
+    
+    if (studentError) throw studentError;
+
+    // update user
+    const userUpdates = { name, email };
+    if (password && password.length > 0 && password !== '****') {
+      userUpdates.password = bcrypt.hashSync(password, 10);
+    }
+    
+    const { error: userUpdateError } = await supabase
+      .from('users')
+      .update(userUpdates)
+      .eq('id', student.user_id);
+      
+    if (userUpdateError) throw userUpdateError;
+
+    // update student
+    const studentUpdates = { department, year: parseInt(year) || 1, section };
+    if (registerNumber) studentUpdates.register_number = registerNumber;
+
+    const { data: updatedStudent, error: studentUpdateError } = await supabase
+      .from('students')
+      .update(studentUpdates)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (studentUpdateError) throw studentUpdateError;
+
+    res.json(updatedStudent);
+  } catch (error) {
+    res.status(500).json({ message: 'Server Error', error: error.message });
+  }
+};
+
+// @desc    Delete student
+// @route   DELETE /api/admin/students/:id
+// @access  Private/Admin
+const deleteStudent = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const { data: student, error: studentError } = await supabase
+      .from('students')
+      .select('user_id')
+      .eq('id', id)
+      .single();
+    
+    if (studentError) throw studentError;
+
+    // Supabase foreign key with CASCADE might handle this, but let's delete user explicitly
+    // First delete student
+    await supabase.from('students').delete().eq('id', id);
+    // Then delete user
+    await supabase.from('users').delete().eq('id', student.user_id);
+
+    res.json({ message: 'Student removed' });
+  } catch (error) {
+    res.status(500).json({ message: 'Server Error', error: error.message });
+  }
+};
+
+
+// @desc    Update faculty
+// @route   PUT /api/admin/faculty/:id
+// @access  Private/Admin
+const updateFaculty = async (req, res) => {
+  const { id } = req.params; // this is the faculty table id
+  const { name, email, password, facultyId, department, designation } = req.body || {};
+
+  try {
+    const { data: faculty, error: facultyError } = await supabase
+      .from('faculty')
+      .select('user_id')
+      .eq('id', id)
+      .single();
+    
+    if (facultyError) throw facultyError;
+
+    // update user
+    const userUpdates = { name, email };
+    if (password && password.length > 0 && password !== '****') {
+      userUpdates.password = bcrypt.hashSync(password, 10);
+    }
+    
+    const { error: userUpdateError } = await supabase
+      .from('users')
+      .update(userUpdates)
+      .eq('id', faculty.user_id);
+      
+    if (userUpdateError) throw userUpdateError;
+
+    // update faculty
+    const facultyUpdates = { department, designation };
+    if (facultyId) facultyUpdates.faculty_id = facultyId;
+
+    const { data: updatedFaculty, error: facultyUpdateError } = await supabase
+      .from('faculty')
+      .update(facultyUpdates)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (facultyUpdateError) throw facultyUpdateError;
+
+    res.json(updatedFaculty);
+  } catch (error) {
+    res.status(500).json({ message: 'Server Error', error: error.message });
+  }
+};
+
+// @desc    Delete faculty
+// @route   DELETE /api/admin/faculty/:id
+// @access  Private/Admin
+const deleteFaculty = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const { data: faculty, error: facultyError } = await supabase
+      .from('faculty')
+      .select('user_id')
+      .eq('id', id)
+      .single();
+    
+    if (facultyError) throw facultyError;
+
+    await supabase.from('faculty').delete().eq('id', id);
+    await supabase.from('users').delete().eq('id', faculty.user_id);
+
+    res.json({ message: 'Faculty removed' });
+  } catch (error) {
+    res.status(500).json({ message: 'Server Error', error: error.message });
+  }
+};
+
 module.exports = {
   getStudents,
   addStudent,
+  updateStudent,
+  deleteStudent,
   getFaculty,
   addFaculty,
+  updateFaculty,
+  deleteFaculty,
 };

@@ -1,98 +1,127 @@
 import { useState, useEffect } from 'react';
 
-const STORAGE_KEY = 'svcet_faculty';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
-const defaultFaculty = [];
+const getToken = () => {
+  try {
+    const adminSession = localStorage.getItem('svcet_session_admin');
+    if (adminSession) {
+      const parsed = JSON.parse(adminSession);
+      return parsed.token;
+    }
+  } catch (e) {
+    console.error(e);
+  }
+  return '';
+};
 
 export const useFaculty = () => {
-  const [faculty, setFacultyState] = useState(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) return JSON.parse(saved);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(defaultFaculty));
-    return defaultFaculty;
-  });
+  const [faculty, setFaculty] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchFaculty = async () => {
+    try {
+      const token = getToken();
+      if (!token) return;
+      const response = await fetch(`${API_URL}/api/admin/faculty`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (!response.ok) throw new Error('Failed to fetch');
+      const data = await response.json();
+      
+      const formatted = data.map(f => ({
+        id: f.id,
+        name: f.user?.name,
+        email: f.user?.email,
+        facultyId: f.faculty_id,
+        department: f.department,
+        designation: f.designation,
+      }));
+      setFaculty(formatted);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const handleStorageChange = () => {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) setFacultyState(JSON.parse(saved));
-    };
-
-    window.addEventListener('storage', handleStorageChange);
-    window.addEventListener('facultyUpdated', handleStorageChange);
-    
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-      window.removeEventListener('facultyUpdated', handleStorageChange);
-    };
+    fetchFaculty();
   }, []);
 
-  const setFaculty = (newFaculty) => {
-    let updated;
-    if (typeof newFaculty === 'function') {
-      updated = newFaculty(faculty);
-    } else {
-      updated = newFaculty;
-    }
-    setFacultyState(updated);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-    window.dispatchEvent(new Event('facultyUpdated'));
-  };
-
-  const addFaculty = (facultyData) => {
-    const newFac = {
-      ...facultyData,
-      id: Date.now()
-    };
-    setFaculty(prev => [newFac, ...prev]);
-  };
-
-  const deleteFaculty = (id) => {
-    setFaculty(prev => prev.filter(f => f.id !== id));
-  };
-
-  const updateFaculty = (id, updatedData) => {
-    setFaculty(prev => prev.map(f => f.id === id ? { ...f, ...updatedData } : f));
-  };
-
-  const applyBulkUpdates = (updatesArray) => {
-    setFacultyState(prev => {
-      const updated = prev.map(fac => {
-        const update = updatesArray.find(u => u.id === fac.id);
-        if (update) {
-          return { ...fac, ...update.data };
-        }
-        return fac;
+  const addFaculty = async (facultyData) => {
+    try {
+      const response = await fetch(`${API_URL}/api/admin/faculty`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${getToken()}`
+        },
+        body: JSON.stringify(facultyData)
       });
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-      return updated;
-    });
-    window.dispatchEvent(new Event('facultyUpdated'));
+      if (response.ok) {
+        fetchFaculty();
+      } else {
+        const error = await response.json();
+        alert(error.message || 'Failed to add faculty');
+      }
+    } catch (err) {
+      console.error(err);
+    }
   };
 
-  const bulkDeleteFaculty = (ids) => {
-    setFacultyState(prev => {
-      const updated = prev.filter(f => !ids.includes(f.id));
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-      return updated;
-    });
-    window.dispatchEvent(new Event('facultyUpdated'));
+  const deleteFaculty = async (id) => {
+    try {
+      const response = await fetch(`${API_URL}/api/admin/faculty/${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${getToken()}` }
+      });
+      if (response.ok) {
+        setFaculty(prev => prev.filter(f => f.id !== id));
+      }
+    } catch (err) {
+      console.error(err);
+    }
   };
 
-  const bulkAddFaculty = (facultyArray) => {
-    setFacultyState(prev => {
-      const timestamp = Date.now();
-      const newFaculty = facultyArray.map((fac, index) => ({
-        ...fac,
-        id: timestamp + index
-      }));
-      
-      const updated = [...newFaculty, ...prev];
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-      return updated;
-    });
-    window.dispatchEvent(new Event('facultyUpdated'));
+  const updateFaculty = async (id, updatedData) => {
+    try {
+      const response = await fetch(`${API_URL}/api/admin/faculty/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${getToken()}`
+        },
+        body: JSON.stringify(updatedData)
+      });
+      if (response.ok) {
+        fetchFaculty();
+      }
+    } catch (err) {
+      console.error(err);
+    }
   };
 
-  return { faculty, addFaculty, deleteFaculty, updateFaculty, applyBulkUpdates, bulkDeleteFaculty, bulkAddFaculty };
+  const applyBulkUpdates = async (updatesArray) => {
+    for (const update of updatesArray) {
+      await updateFaculty(update.id, update.data);
+    }
+    fetchFaculty();
+  };
+
+  const bulkDeleteFaculty = async (ids) => {
+    for (const id of ids) {
+      await deleteFaculty(id);
+    }
+    fetchFaculty();
+  };
+
+  const bulkAddFaculty = async (facultyArray) => {
+    for (const fac of facultyArray) {
+      await addFaculty(fac);
+    }
+    fetchFaculty();
+  };
+
+  return { faculty, loading, addFaculty, deleteFaculty, updateFaculty, applyBulkUpdates, bulkDeleteFaculty, bulkAddFaculty };
 };
