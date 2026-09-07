@@ -1,6 +1,4 @@
-const User = require('../models/User');
-const Student = require('../models/Student');
-const Faculty = require('../models/Faculty');
+const supabase = require('../config/db');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 
@@ -17,25 +15,64 @@ const loginUser = async (req, res) => {
   const { id, password, role } = req.body;
 
   try {
-    let user;
+    let user = null;
 
     if (role === 'Student') {
-      const student = await Student.findOne({ registerNumber: id }).populate('user');
-      if (student) user = student.user;
+      // Find student by register number, then get their user
+      const { data: student, error: studentError } = await supabase
+        .from('students')
+        .select('user_id')
+        .eq('register_number', id)
+        .single();
+
+      if (studentError || !student) {
+        return res.status(401).json({ message: 'Invalid credentials' });
+      }
+
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', student.user_id)
+        .single();
+
+      if (!userError && userData) user = userData;
     } else if (role === 'Faculty') {
-      const faculty = await Faculty.findOne({ facultyId: id }).populate('user');
-      if (faculty) user = faculty.user;
+      // Find faculty by faculty_id, then get their user
+      const { data: faculty, error: facultyError } = await supabase
+        .from('faculty')
+        .select('user_id')
+        .eq('faculty_id', id)
+        .single();
+
+      if (facultyError || !faculty) {
+        return res.status(401).json({ message: 'Invalid credentials' });
+      }
+
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', faculty.user_id)
+        .single();
+
+      if (!userError && userData) user = userData;
     } else if (role === 'Admin') {
-      user = await User.findOne({ email: id, role: 'ADMIN' });
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('*')
+        .eq('email', id)
+        .eq('role', 'ADMIN')
+        .single();
+
+      if (!userError && userData) user = userData;
     }
 
     if (user && bcrypt.compareSync(password, user.password)) {
       res.json({
-        id: user._id,
+        id: user.id,
         name: user.name,
         email: user.email,
         role: user.role,
-        token: generateToken(user._id, user.role),
+        token: generateToken(user.id, user.role),
       });
     } else {
       res.status(401).json({ message: 'Invalid credentials' });
@@ -50,21 +87,31 @@ const loginUser = async (req, res) => {
 // @access  Public
 const seedAdmin = async (req, res) => {
   try {
-    const adminExists = await User.findOne({ role: 'ADMIN' });
+    const { data: adminExists } = await supabase
+      .from('users')
+      .select('id')
+      .eq('role', 'ADMIN')
+      .single();
 
     if (adminExists) {
       return res.status(400).json({ message: 'Admin already exists' });
     }
 
     const hashedPassword = bcrypt.hashSync('admin123', 10);
-    const admin = await User.create({
-      role: 'ADMIN',
-      name: 'Super Admin',
-      email: 'admin@svcetcampus.edu',
-      password: hashedPassword,
-    });
+    const { data: admin, error } = await supabase
+      .from('users')
+      .insert({
+        role: 'ADMIN',
+        name: 'Super Admin',
+        email: 'admin@svcetcampus.edu',
+        password: hashedPassword,
+      })
+      .select()
+      .single();
 
-    res.status(201).json({ message: 'Admin seeded successfully', admin: { id: admin._id, email: admin.email } });
+    if (error) throw error;
+
+    res.status(201).json({ message: 'Admin seeded successfully', admin: { id: admin.id, email: admin.email } });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
